@@ -1,0 +1,85 @@
+name: Sync skill from source repo
+
+on:
+  repository_dispatch:
+    types: [sync-skill]
+
+concurrency:
+  group: sync-skill-${{ github.event.client_payload.skill }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate dispatch payload
+        run: |
+          for field in skill source_repo source_path source_sha; do
+            val=$(echo '${{ toJSON(github.event.client_payload) }}' | jq -r ".$field // empty")
+            if [ -z "$val" ]; then
+              echo "::error::Missing required field: $field"
+              exit 1
+            fi
+          done
+          echo "Syncing ${{ github.event.client_payload.skill }} from ${{ github.event.client_payload.source_repo }}@${{ github.event.client_payload.source_sha }}"
+
+      - name: Checkout marketplace repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SKILL_SYNC_TOKEN }}
+
+      - name: Validate skill is registered
+        run: |
+          SKILL="${{ github.event.client_payload.skill }}"
+          REGISTERED=$(jq -r --arg s "$SKILL" '.[$s] // empty' skills.json)
+          if [ -z "$REGISTERED" ]; then
+            echo "::error::Skill '$SKILL' is not registered in skills.json"
+            exit 1
+          fi
+
+      - name: Checkout source repo (sparse)
+        run: |
+          git clone \
+            --filter=blob:none \
+            --no-checkout \
+            --depth=1 \
+            "https://x-access-token:${{ secrets.SKILL_SYNC_TOKEN }}@github.com/${{ github.event.client_payload.source_repo }}.git" \
+            /tmp/source-repo
+          cd /tmp/source-repo
+          git sparse-checkout init --cone
+          git sparse-checkout set "${{ github.event.client_payload.source_path }}"
+          git checkout "${{ github.event.client_payload.source_sha }}"
+
+      - name: Copy skill files
+        run: |
+          SKILL="${{ github.event.client_payload.skill }}"
+          SOURCE_PATH="${{ github.event.client_payload.source_path }}"
+          rm -rf "${SKILL}"
+          cp -r "/tmp/source-repo/${SOURCE_PATH}" "${SKILL}"
+          rm -rf "${SKILL}/.claude-plugin"
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --cached --stat
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          SKILL="${{ github.event.client_payload.skill }}"
+          SOURCE_REPO="${{ github.event.client_payload.source_repo }}"
+          SOURCE_SHA="${{ github.event.client_payload.source_sha }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "sync(${SKILL}): update from ${SOURCE_REPO}@${SOURCE_SHA:0:7}
+
+          Source: ${SOURCE_REPO}@${SOURCE_SHA}
+          Triggered by push to ${SOURCE_REPO} main branch."
+          git push
