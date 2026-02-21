@@ -15,14 +15,14 @@
       "description": "SCA (Simple Certificate Authority) CLI assistant. Use when the user needs to manage PKI certificates, create keys, CSRs, or certificates, configure SCA, manage YubiKey hardware tokens, approve signing requests, export certificate bundles, or perform any certificate authority operations using the sca command-line tool.",
       "source": "./sca-cskill/",
       "strict": false,
-      "skills": ["./SKILL.md"]
+      "skills": ["./"]
     },
     {
       "name": "openwrt-plugin",
       "description": "Ansible collection harley.openwrt assistant. Use when the user needs to configure OpenWRT routers or Linux gateways using Ansible, create playbooks with harley.openwrt roles (base, network, firewall, dhcp_dns, ipsec, ipsec_gateway, acme, ddns, ddns_gateway, webui), manage UCI configuration, set up StrongSwan VPN, ACME certificates, DHCP/DNS, dynamic DNS, firewall zones, WiFi, or troubleshoot OpenWRT Ansible deployments.",
       "source": "./openwrt-cskill/",
       "strict": false,
-      "skills": ["./SKILL.md"]
+      "skills": ["./"]
     }
   ]
 }
