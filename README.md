@@ -10,6 +10,11 @@ Claude Code skills marketplace for Harley Systems tools.
 
 Then use `/plugin` to install individual skills.
 
+Each plugin is fetched directly from the subdirectory of its own source
+repository (a `git-subdir` source), so what you install is always what is on
+that repository's default branch. Nothing is copied into this repository, so a
+published skill cannot fall behind its source.
+
 ## Available Skills
 
 ### sca-plugin
